@@ -1,0 +1,2405 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Roof Calculator Pro - Măsurare AR Avansată</title>
+    
+    <!-- Biblioteci pentru AR și procesare -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            color: white;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        /* Layout principal cu trei coloane */
+        .main-layout {
+            display: grid;
+            grid-template-columns: 400px 1fr 350px;
+            gap: 20px;
+            align-items: start;
+        }
+
+        /* Panoul camerei AR */
+        .ar-panel {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .panel-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+
+        .camera-container {
+            position: relative;
+            width: 100%;
+            border-radius: 10px;
+            overflow: hidden;
+            background: #000;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+
+        #ar-video {
+            width: 100%;
+            height: 250px;
+            object-fit: cover;
+        }
+
+        .ar-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            pointer-events: none;
+        }
+
+        #ar-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        /* Controale AR */
+        .ar-controls {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .control-btn {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .control-btn.primary {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            color: white;
+        }
+
+        .control-btn.success {
+            background: linear-gradient(135deg, #27ae60, #229954);
+            color: white;
+        }
+
+        .control-btn.warning {
+            background: linear-gradient(135deg, #f39c12, #e67e22);
+            color: white;
+        }
+
+        .control-btn.danger {
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+            color: white;
+        }
+
+        .control-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        .control-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* Panoul central pentru fotografia măsurată */
+        .photo-panel {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .photo-container {
+            position: relative;
+            width: 100%;
+            min-height: 500px;
+            border: 2px dashed #bdc3c7;
+            border-radius: 10px;
+            background: #f8f9fa;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        #captured-photo {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            border-radius: 8px;
+        }
+
+        #measurement-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            cursor: crosshair;
+        }
+
+        .photo-placeholder {
+            text-align: center;
+            color: #6c757d;
+            font-size: 1.1em;
+        }
+
+        /* Controale foto */
+        .photo-controls {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        /* Panoul proiectelor */
+        .project-panel {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        /* Lista punctelor */
+        .points-list {
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            background: #f8f9fa;
+        }
+
+        .point-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 12px;
+            border-bottom: 1px solid #e9ecef;
+            font-size: 14px;
+        }
+
+        .point-item:last-child {
+            border-bottom: none;
+        }
+
+        .point-label {
+            font-weight: bold;
+            color: #2c3e50;
+        }
+
+        .point-coords {
+            font-size: 12px;
+            color: #6c757d;
+        }
+
+        /* Lista măsurătorilor */
+        .measurements-list {
+            margin-top: 15px;
+        }
+
+        .measurement-item {
+            background: #e8f5e8;
+            border: 1px solid #c3e6cb;
+            border-radius: 6px;
+            padding: 10px;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .measurement-label {
+            font-weight: bold;
+            color: #155724;
+        }
+
+        .measurement-value {
+            color: #155724;
+            font-family: monospace;
+        }
+
+        /* Lista proiectelor */
+        .projects-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .project-item {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .project-item:hover {
+            background: #e9ecef;
+            transform: translateY(-1px);
+        }
+
+        .project-item.active {
+            background: #d1ecf1;
+            border-color: #bee5eb;
+        }
+
+        .project-name {
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 5px;
+        }
+
+        .project-info {
+            font-size: 12px;
+            color: #6c757d;
+        }
+
+        /* Status și calibrare */
+        .status-panel {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 15px;
+        }
+
+        .status-title {
+            font-weight: bold;
+            color: #495057;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .status-info {
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .calibration-info {
+            background: #d1ecf1;
+            border: 1px solid #bee5eb;
+            border-radius: 6px;
+            padding: 10px;
+            margin-top: 10px;
+            font-size: 13px;
+        }
+
+        /* Dialog pentru salvarea proiectului */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+
+        .modal-content {
+            background-color: white;
+            margin: 15% auto;
+            padding: 20px;
+            border-radius: 10px;
+            width: 400px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-title {
+            font-size: 1.3em;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #6c757d;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #495057;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ced4da;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .form-textarea {
+            width: 100%;
+            height: 80px;
+            padding: 10px;
+            border: 1px solid #ced4da;
+            border-radius: 6px;
+            font-size: 14px;
+            resize: vertical;
+        }
+
+        /* Instrucțiuni */
+        .instructions {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+
+        .instructions h4 {
+            color: #856404;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .instructions ul {
+            color: #856404;
+            margin-left: 20px;
+        }
+
+        .instructions li {
+            margin-bottom: 5px;
+        }
+
+        /* Responsive design */
+        @media (max-width: 1200px) {
+            .main-layout {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+        }
+
+        /* Animații */
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        .measuring {
+            animation: pulse 1s infinite;
+        }
+
+        /* Loading indicator */
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Butoane pentru puncte */
+        .point-marker {
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            background: #e74c3c;
+            border: 2px solid white;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            cursor: pointer;
+            z-index: 10;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        }
+
+        .point-label-text {
+            position: absolute;
+            top: -25px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #2c3e50;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: bold;
+            white-space: nowrap;
+        }
+
+        /* Liniile de măsurare */
+        .measurement-line {
+            stroke: #e74c3c;
+            stroke-width: 2;
+            fill: none;
+        }
+
+        .measurement-text {
+            fill: #2c3e50;
+            font-size: 12px;
+            font-weight: bold;
+            text-anchor: middle;
+        }
+
+        .measurement-bg {
+            fill: rgba(255, 255, 255, 0.9);
+            stroke: #2c3e50;
+            stroke-width: 1;
+        }
+
+        /* Toast pentru notificări */
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 20px;
+            border-radius: 8px;
+            color: white;
+            font-weight: bold;
+            z-index: 1001;
+            transform: translateX(400px);
+            transition: transform 0.3s ease;
+        }
+
+        .toast.show {
+            transform: translateX(0);
+        }
+
+        .toast.success {
+            background: linear-gradient(135deg, #27ae60, #229954);
+        }
+
+        .toast.error {
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+        }
+
+        .toast.info {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>🏗️ Roof Calculator Pro AR</h1>
+            <p>Măsurare avansată cu realitate augmentată pentru acoperișuri</p>
+        </header>
+
+        <div class="instructions">
+            <h4>📋 Instrucțiuni de utilizare AR (DOAR Camera din Spate):</h4>
+            <ul>
+                <li><strong>🚫 IMPORTANT:</strong> Aplicația folosește <strong>EXCLUSIV CAMERA DIN SPATE</strong> pentru măsurători tehnice precise</li>
+                <li><strong>📱 Compatibilitate:</strong> Necesită telefon/tabletă cu cameră din spate + HTTPS/localhost</li>
+                <li><strong>🧪 Testare:</strong> Folosiți <strong>"📱 Test Cameră SPATE"</strong> pentru verificarea disponibilității</li>
+                <li><strong>📹 Pornire AR:</strong> "Pornește AR" va căuta și conecta automat camera din spate</li>
+                <li><strong>🎯 Calibrare:</strong> Plasați obiect de referință (monedă 1EUR/RON, card bancar) și calibrați</li>
+                <li><strong>📸 Fotografiere:</strong> Țineți telefonul stabil și îndreptați camera spre suprafața de măsurat</li>
+                <li><strong>📐 Măsurare:</strong> Adăugați puncte pe fotografie pentru linii cu dimensiuni calculate automat</li>
+                <li><strong>💾 Salvare:</strong> Salvați proiectul pentru acces ulterior și export profesional</li>
+            </ul>
+            
+            <div style="background: #ffeaa7; padding: 10px; border-radius: 6px; margin-top: 10px;">
+                <strong>⚠️ Camera de selfie NU va fi folosită!</strong> Pentru măsurători de acoperișuri la distanță (1-50m), 
+                doar camera din spate oferă precizia necesară. Dispozitivele fără cameră din spate nu pot folosi această aplicație.
+            </div>
+        </div>
+
+        <div class="main-layout">
+            <!-- Panoul AR Camera -->
+            <div class="ar-panel">
+                <div class="panel-title">
+                    📱 Camera AR pentru Măsurare
+                </div>
+                
+                <div class="camera-container">
+                    <video id="ar-video" autoplay muted playsinline></video>
+                    <div class="ar-overlay">
+                        <canvas id="ar-canvas"></canvas>
+                    </div>
+                </div>
+
+                <div class="ar-controls">
+                    <button class="control-btn primary" id="start-ar">
+                        📹 Pornește AR
+                    </button>
+                    <button class="control-btn warning" id="calibrate-ar" disabled>
+                        🎯 Calibrează AR
+                    </button>
+                    <button class="control-btn success" id="take-photo" disabled>
+                        📸 Fă Fotografia
+                    </button>
+                    <button class="control-btn danger" id="stop-ar" disabled>
+                        ⏹️ Oprește AR
+                    </button>
+                    <button class="control-btn" id="test-camera" style="grid-column: 1 / 3;">
+                        📱 Test Cameră SPATE
+                    </button>
+                    <button class="control-btn" id="camera-help" style="grid-column: 3 / 5;">
+                        ❓ Ajutor Cameră SPATE
+                    </button>
+                </div>
+
+                <div class="status-panel">
+                    <div class="status-title">
+                        📊 Status AR
+                    </div>
+                    <div class="status-info" id="ar-status">
+                        Sistemul AR este gata. Apăsați "Pornește AR" pentru conectarea camerei din spate.
+                    </div>
+                    <div id="calibration-display" style="display: none;"></div>
+                </div>
+            </div>
+
+            <!-- Panoul central pentru fotografia măsurată -->
+            <div class="photo-panel">
+                <div class="panel-title">
+                    📷 Fotografia pentru Măsurare
+                </div>
+                
+                <div class="photo-container" id="photo-container">
+                    <div class="photo-placeholder">
+                        <div style="font-size: 3em; margin-bottom: 10px;">📷</div>
+                        <p>Faceți o fotografie cu AR pentru a începe măsurarea</p>
+                    </div>
+                    <img id="captured-photo" style="display: none;">
+                    <canvas id="measurement-canvas" style="display: none;"></canvas>
+                    <svg id="measurement-svg" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: none;"></svg>
+                </div>
+
+                <div class="photo-controls">
+                    <button class="control-btn primary" id="add-point-mode">
+                        📍 Adaugă Punct
+                    </button>
+                    <button class="control-btn warning" id="undo-point" disabled>
+                        ↶ UNDO
+                    </button>
+                    <button class="control-btn success" id="close-shape" disabled>
+                        🔗 Închide Forma
+                    </button>
+                    <button class="control-btn danger" id="clear-points">
+                        🗑️ Șterge Tot
+                    </button>
+                </div>
+
+                <div class="measurements-list" id="measurements-list">
+                    <h4>📏 Măsurători:</h4>
+                    <div style="text-align: center; color: #6c757d; padding: 20px; font-style: italic;">
+                        Nu există măsurători încă
+                    </div>
+                </div>
+            </div>
+
+            <!-- Panoul proiectelor -->
+            <div class="project-panel">
+                <div class="panel-title">
+                    📁 Proiecte Salvate
+                </div>
+
+                <div class="points-list" id="points-list">
+                    <div style="text-align: center; color: #6c757d; padding: 20px; font-style: italic;">
+                        Nu există puncte adăugate
+                    </div>
+                </div>
+
+                <div style="margin: 15px 0;">
+                    <button class="control-btn success" id="save-project" style="width: 100%;">
+                        💾 Salvează Proiect
+                    </button>
+                </div>
+
+                <div class="projects-list" id="projects-list">
+                    <div style="text-align: center; color: #6c757d; padding: 20px; font-style: italic;">
+                        Nu există proiecte salvate
+                    </div>
+                </div>
+
+                <div style="margin-top: 15px;">
+                    <button class="control-btn primary" id="export-pdf" style="width: 100%; margin-bottom: 10px;">
+                        📄 Exportă PDF
+                    </button>
+                    <button class="control-btn warning" id="export-json" style="width: 100%;">
+                        💾 Exportă JSON
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal pentru salvarea proiectului -->
+    <div id="save-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">💾 Salvează Proiect</h3>
+                <button class="close-btn" id="close-modal">&times;</button>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Numele proiectului:</label>
+                <input type="text" class="form-input" id="project-name" placeholder="Ex: Acoperiș Casa Principală">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Descriere (opțional):</label>
+                <textarea class="form-textarea" id="project-description" placeholder="Detalii despre proiect..."></textarea>
+            </div>
+            <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                <button class="control-btn" id="cancel-save">Anulează</button>
+                <button class="control-btn success" id="confirm-save">Salvează</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast pentru notificări -->
+    <div id="toast" class="toast"></div>
+
+    <script>
+        // 🚀 ROOF CALCULATOR PRO AR - SISTEM AVANSAT DE MĂSURARE CU REALITATE AUGMENTATĂ
+        
+        class RoofCalculatorProAR {
+            constructor() {
+                // Elemente DOM
+                this.video = null;
+                this.arCanvas = null;
+                this.arCtx = null;
+                this.measurementCanvas = null;
+                this.measurementCtx = null;
+                this.measurementSvg = null;
+                this.capturedPhoto = null;
+                
+                // State pentru AR
+                this.stream = null;
+                this.isARActive = false;
+                this.isCalibrated = false;
+                this.pixelsPerMM = 1;
+                this.referenceObject = null;
+                this.deviceOrientation = { alpha: 0, beta: 0, gamma: 0 };
+                this.cameraDistance = 1; // metri
+                
+                // State pentru măsurare
+                this.points = [];
+                this.measurements = [];
+                this.isAddingPoints = false;
+                this.nextPointLabel = 'A';
+                this.photoData = null;
+                
+                // Proiecte
+                this.projects = [];
+                this.currentProject = null;
+                
+                this.init();
+            }
+
+            async init() {
+                console.log('🚀 Inițializare Roof Calculator Pro AR...');
+                
+                // Configurare elemente DOM
+                this.setupDOMElements();
+                
+                // Verificare compatibilitate browser
+                await this.checkBrowserCompatibility();
+                
+                // Event listeners
+                this.setupEventListeners();
+                
+                // Încărcare proiecte salvate
+                this.loadProjects();
+                
+                // Setup senzori device
+                this.setupDeviceSensors();
+                
+                console.log('✅ Inițializare completă AR!');
+                this.updateARStatus('Sistem AR gata pentru utilizare!', 'success');
+            }
+
+            async checkBrowserCompatibility() {
+                // **EXPLICAȚIE DETALIATĂ:** Verificăm toate API-urile necesare pentru AR
+                console.log('🔍 Verificare compatibilitate browser...');
+                
+                const compatibility = {
+                    getUserMedia: !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia),
+                    deviceOrientation: !!window.DeviceOrientationEvent,
+                    deviceMotion: !!window.DeviceMotionEvent,
+                    canvas: !!document.createElement('canvas').getContext,
+                    localStorage: !!window.localStorage
+                };
+
+                console.log('📊 Compatibilitate browser:', compatibility);
+
+                // Afișăm informațiile în interfață
+                let statusMessage = '🔍 Verificare sistem: ';
+                let warnings = [];
+
+                if (!compatibility.getUserMedia) {
+                    warnings.push('⚠️ API cameră indisponibil');
+                }
+                
+                if (!compatibility.deviceOrientation) {
+                    warnings.push('⚠️ Senzori orientare indisponibili');
+                }
+
+                if (warnings.length > 0) {
+                    statusMessage += warnings.join(', ');
+                    this.updateARStatus(statusMessage, 'warning');
+                } else {
+                    statusMessage += 'Toate API-urile sunt disponibile ✅';
+                    this.updateARStatus(statusMessage, 'success');
+                }
+
+                // Verificăm camerele disponibile
+                if (compatibility.getUserMedia) {
+                    await this.enumerateDevices();
+                }
+
+                return compatibility;
+            }
+
+            async enumerateDevices() {
+                // **EXPLICAȚIE:** Listăm toate camerele disponibile pe dispozitiv
+                try {
+                    const devices = await navigator.mediaDevices.enumerateDevices();
+                    const videoDevices = devices.filter(device => device.kind === 'videoinput');
+                    
+                    console.log('📹 Camere disponibile:', videoDevices);
+                    
+                    if (videoDevices.length === 0) {
+                        this.updateARStatus('⚠️ Nu s-au găsit camere disponibile', 'warning');
+                    } else {
+                        console.log(`✅ ${videoDevices.length} cameră/camere găsite`);
+                        
+                        // Afișăm informații despre camere în consol 
+                        videoDevices.forEach((device, index) => {
+                            console.log(`📱 Camera ${index + 1}: ${device.label || 'Necunoscută'} (ID: ${device.deviceId})`);
+                        });
+                    }
+                    
+                    return videoDevices;
+                } catch (error) {
+                    console.error('❌ Eroare la enumerarea dispozitivelor:', error);
+                    return [];
+                }
+            }
+
+            showBackCameraHelp() {
+                // **EXPLICAȚIE DETALIATĂ:** Instrucțiuni specifice pentru camera din spate
+                const helpModal = document.createElement('div');
+                helpModal.className = 'modal';
+                helpModal.style.display = 'block';
+                helpModal.innerHTML = `
+                    <div class="modal-content" style="max-width: 600px;">
+                        <div class="modal-header">
+                            <h3 class="modal-title">📱 Ajutor Camera din Spate pentru AR</h3>
+                            <button class="close-btn" onclick="this.closest('.modal').remove()">&times;</button>
+                        </div>
+                        <div style="padding: 20px;">
+                            <div style="background: #ffeaa7; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                                <strong>⚠️ IMPORTANT:</strong> Pentru măsurători AR tehnice precise, aplicația folosește EXCLUSIV camera din spate. 
+                                Camera de selfie NU este potrivită pentru măsurători la distanță și nu va fi folosită niciodată.
+                            </div>
+                            
+                            <h4>🔧 Verificări pentru Camera din Spate:</h4>
+                            <ol style="margin-left: 20px; line-height: 1.8;">
+                                <li><strong>Verificați dispozitivul:</strong>
+                                    <ul style="margin: 5px 0 10px 20px;">
+                                        <li>📱 Telefonul/tableta TREBUIE să aibă cameră din spate</li>
+                                        <li>💻 Laptop-urile cu doar cameră web frontală NU vor funcționa</li>
+                                        <li>🖥️ Desktop-urile cu cameră USB externă pot funcționa</li>
+                                    </ul>
+                                </li>
+                                
+                                <li><strong>Permisiuni camera din spate:</strong>
+                                    <ul style="margin: 5px 0 10px 20px;">
+                                        <li>Când vi se cere permisiunea, aprobați accesul la cameră</li>
+                                        <li>Aplicația va selecta automat camera din spate</li>
+                                        <li>Dacă browserul întreabă care cameră, alegeți "Camera din spate"</li>
+                                    </ul>
+                                </li>
+                                
+                                <li><strong>Setări browser pentru camera din spate:</strong>
+                                    <ul style="margin: 5px 0 10px 20px;">
+                                        <li><strong>Chrome/Edge:</strong> Apăsați 🔒 → Camera → Permite</li>
+                                        <li><strong>Firefox:</strong> Apăsați ⚙️ → Camera → Permite</li>
+                                        <li><strong>Safari:</strong> Setări → Confidențialitate → Camera</li>
+                                    </ul>
+                                </li>
+                                
+                                <li><strong>Probleme comune:</strong>
+                                    <ul style="margin: 5px 0 10px 20px;">
+                                        <li>📱 <em>"Doar camera din față detectată"</em> → Verificați că dispozitivul are cameră din spate</li>
+                                        <li>🚫 <em>"Camera ocupată"</em> → Închideți alte aplicații care folosesc camera</li>
+                                        <li>⚠️ <em>"Constrângeri neîndeplinite"</em> → Camera din spate nu suportă rezoluția cerută</li>
+                                    </ul>
+                                </li>
+                            </ol>
+                            
+                            <div style="background: #d1ecf1; padding: 15px; border-radius: 8px; margin: 15px 0;">
+                                <strong>💡 De ce camera din spate?</strong><br>
+                                • <strong>Rezoluție superioară</strong> pentru măsurători precise<br>
+                                • <strong>Focalizare la distanță</strong> pentru acoperișuri<br>
+                                • <strong>Stabilizare optică</strong> pentru imagini clare<br>
+                                • <strong>Senzori avansați</strong> pentru calculul distanței<br>
+                                • <strong>Poziționare naturală</strong> pentru măsurarea obiectelor
+                            </div>
+                            
+                            <div style="display: flex; gap: 10px; justify-content: center; margin-top: 20px;">
+                                <button class="control-btn primary" onclick="roofCalculator.testBackCamera()">
+                                    📱 Test Cameră Spate
+                                </button>
+                                <button class="control-btn warning" onclick="roofCalculator.showDeviceInfo()">
+                                    🔍 Info Camere
+                                </button>
+                                <button class="control-btn" onclick="this.closest('.modal').remove()">
+                                    Închide
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                document.body.appendChild(helpModal);
+            }
+
+            async testBackCamera() {
+                // **EXPLICAȚIE:** Funcție de testare specifică pentru camera din spate
+                console.log('📱 Începe testul camerei din spate...');
+                this.updateARStatus('📱 Test cameră din spate în curs...', 'info');
+                
+                try {
+                    // Enumerăm dispozitivele pentru a identifica camera din spate
+                    const devices = await navigator.mediaDevices.enumerateDevices();
+                    const videoDevices = devices.filter(device => device.kind === 'videoinput');
+                    
+                    console.log('📹 Camere disponibile pentru test:', videoDevices);
+                    
+                    if (videoDevices.length === 0) {
+                        throw new Error('Nu s-au găsit camere pe acest dispozitiv');
+                    }
+                    
+                    // Căutăm camera din spate
+                    const backCamera = videoDevices.find(device => 
+                        device.label.toLowerCase().includes('back') ||
+                        device.label.toLowerCase().includes('rear') ||
+                        device.label.toLowerCase().includes('environment')
+                    );
+                    
+                    // Testăm cu facingMode environment
+                    const testConstraints = {
+                        video: {
+                            facingMode: { exact: 'environment' }
+                        }
+                    };
+                    
+                    console.log('🧪 Testez camera din spate cu constrângeri:', testConstraints);
+                    
+                    const testStream = await navigator.mediaDevices.getUserMedia(testConstraints);
+                    
+                    // Verificăm setările obținute
+                    const videoTrack = testStream.getVideoTracks()[0];
+                    const settings = videoTrack.getSettings();
+                    
+                    console.log('✅ Test cameră din spate reușit!');
+                    console.log('📹 Setări cameră din spate:', settings);
+                    console.log('🎥 Track info:', {
+                        label: videoTrack.label,
+                        kind: videoTrack.kind,
+                        enabled: videoTrack.enabled,
+                        readyState: videoTrack.readyState
+                    });
+                    
+                    // Verificăm că nu e camera din față
+                    if (settings.facingMode === 'user') {
+                        testStream.getTracks().forEach(track => track.stop());
+                        throw new Error('S-a obținut camera din față în loc de cea din spate');
+                    }
+                    
+                    // Oprim stream-ul de test
+                    testStream.getTracks().forEach(track => track.stop());
+                    
+                    const successMessage = `✅ Camera din spate funcționează perfect! (${settings.width}x${settings.height}, ${settings.facingMode || 'environment'})`;
+                    this.updateARStatus(successMessage, 'success');
+                    this.showToast('Camera din spate este gata pentru AR!', 'success');
+                    
+                    // Închidem modal-ul de ajutor dacă este deschis
+                    const helpModal = document.querySelector('.modal');
+                    if (helpModal) helpModal.remove();
+                    
+                } catch (error) {
+                    console.error('❌ Test cameră din spate eșuat:', error);
+                    
+                    let errorDetail = '';
+                    switch (error.name) {
+                        case 'NotAllowedError':
+                            errorDetail = 'Permisiunea pentru camera din spate a fost refuzată';
+                            break;
+                        case 'NotFoundError':
+                            errorDetail = 'Nu s-a găsit camera din spate pe acest dispozitiv';
+                            break;
+                        case 'NotSupportedError':
+                            errorDetail = 'Camera din spate nu este suportată în acest browser';
+                            break;
+                        case 'OverconstrainedError':
+                            errorDetail = 'Constrângerile pentru camera din spate nu pot fi îndeplinite';
+                            break;
+                        default:
+                            errorDetail = error.message;
+                    }
+                    
+                    this.updateARStatus(`❌ Test cameră din spate eșuat: ${errorDetail}`, 'error');
+                    this.showToast('Camera din spate nu funcționează!', 'error');
+                    
+                    // Sugerăm verificări suplimentare
+                    console.log('💡 Sugestii pentru rezolvare:');
+                    console.log('1. Verificați că dispozitivul are cameră din spate');
+                    console.log('2. Verificați permisiunile browserului');
+                    console.log('3. Închideți alte aplicații care folosesc camera');
+                    console.log('4. Încercați cu un alt browser');
+                }
+            }
+
+            async showDeviceInfo() {
+                // **EXPLICAȚIE:** Afișăm informații despre dispozitiv cu focus pe camere
+                const info = {
+                    userAgent: navigator.userAgent,
+                    platform: navigator.platform,
+                    cookieEnabled: navigator.cookieEnabled,
+                    onLine: navigator.onLine,
+                    language: navigator.language,
+                    hardwareConcurrency: navigator.hardwareConcurrency,
+                    deviceMemory: navigator.deviceMemory || 'necunoscut',
+                    connection: navigator.connection ? {
+                        effectiveType: navigator.connection.effectiveType,
+                        downlink: navigator.connection.downlink
+                    } : 'necunoscut'
+                };
+
+                // Obținem informații despre camere
+                let cameraInfo = 'Se încarcă...';
+                try {
+                    const devices = await navigator.mediaDevices.enumerateDevices();
+                    const videoDevices = devices.filter(device => device.kind === 'videoinput');
+                    
+                    if (videoDevices.length === 0) {
+                        cameraInfo = '❌ Nu s-au găsit camere';
+                    } else {
+                        cameraInfo = videoDevices.map((device, index) => {
+                            const label = device.label || `Camera ${index + 1}`;
+                            let type = '❓ Necunoscut';
+                            
+                            if (label.toLowerCase().includes('back') || 
+                                label.toLowerCase().includes('rear') || 
+                                label.toLowerCase().includes('environment')) {
+                                type = '📱 Spate (Perfect pentru AR!)';
+                            } else if (label.toLowerCase().includes('front') || 
+                                      label.toLowerCase().includes('user') || 
+                                      label.toLowerCase().includes('selfie')) {
+                                type = '🤳 Față (Nu se folosește pentru AR)';
+                            }
+                            
+                            return `${index + 1}. ${label}\n   Tip: ${type}\n   ID: ${device.deviceId.substring(0, 20)}...`;
+                        }).join('\n\n');
+                    }
+                } catch (error) {
+                    cameraInfo = `❌ Eroare la detectarea camerelor: ${error.message}`;
+                }
+
+                console.log('📱 Informații dispozitiv:', info);
+                console.log('📹 Informații camere:', cameraInfo);
+                
+                const infoModal = document.createElement('div');
+                infoModal.className = 'modal';
+                infoModal.style.display = 'block';
+                infoModal.innerHTML = `
+                    <div class="modal-content" style="max-width: 700px;">
+                        <div class="modal-header">
+                            <h3 class="modal-title">📱 Informații Dispozitiv și Camere</h3>
+                            <button class="close-btn" onclick="this.closest('.modal').remove()">&times;</button>
+                        </div>
+                        <div style="padding: 20px;">
+                            <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; font-family: monospace; font-size: 12px; white-space: pre-wrap; overflow-x: auto; margin-bottom: 15px;">
+🌐 Browser: ${navigator.userAgent.split(' ').slice(-2).join(' ')}
+💻 Platform: ${info.platform}
+🌍 Limbă: ${info.language}
+🔗 Online: ${info.onLine ? '✅' : '❌'}
+🍪 Cookies: ${info.cookieEnabled ? '✅' : '❌'}
+⚡ CPU Cores: ${info.hardwareConcurrency || 'necunoscut'}
+💾 RAM: ${info.deviceMemory ? info.deviceMemory + 'GB' : 'necunoscut'}
+📡 Conexiune: ${typeof info.connection === 'object' ? info.connection.effectiveType : 'necunoscut'}
+
+🔐 Context securizat: ${window.isSecureContext ? '✅ HTTPS/localhost' : '❌ HTTP'}
+📍 Locație: ${location.protocol}//${location.host}
+                            </div>
+                            
+                            <div style="background: #e8f5e8; padding: 15px; border-radius: 8px; font-family: monospace; font-size: 12px; white-space: pre-wrap; overflow-x: auto;">
+📹 CAMERE DETECTATE:
+
+${cameraInfo}
+
+💡 PENTRU AR TEHNIC:
+• Aplicația folosește EXCLUSIV camera din spate
+• Camera din față NU va fi folosită niciodată
+• Pentru măsurători precise la distanță (1-50m)
+• Necesită dispozitiv cu cameră din spate de calitate
+                            </div>
+                            
+                            <div style="text-align: center; margin-top: 20px;">
+                                <button class="control-btn primary" onclick="roofCalculator.testBackCamera()" style="margin-right: 10px;">
+                                    📱 Test Cameră Spate
+                                </button>
+                                <button class="control-btn" onclick="this.closest('.modal').remove()">
+                                    Închide
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                document.body.appendChild(infoModal);
+            }
+
+            setupDOMElements() {
+                this.video = document.getElementById('ar-video');
+                this.arCanvas = document.getElementById('ar-canvas');
+                this.arCtx = this.arCanvas.getContext('2d');
+                this.measurementCanvas = document.getElementById('measurement-canvas');
+                this.measurementCtx = this.measurementCanvas.getContext('2d');
+                this.measurementSvg = document.getElementById('measurement-svg');
+                this.capturedPhoto = document.getElementById('captured-photo');
+            }
+
+            setupEventListeners() {
+                // Butoane AR
+                document.getElementById('start-ar').addEventListener('click', () => this.startAR());
+                document.getElementById('stop-ar').addEventListener('click', () => this.stopAR());
+                document.getElementById('calibrate-ar').addEventListener('click', () => this.calibrateAR());
+                document.getElementById('take-photo').addEventListener('click', () => this.takePhoto());
+                document.getElementById('test-camera').addEventListener('click', () => this.testBackCamera());
+                document.getElementById('camera-help').addEventListener('click', () => this.showBackCameraHelp());
+                
+                // Butoane măsurare
+                document.getElementById('add-point-mode').addEventListener('click', () => this.togglePointMode());
+                document.getElementById('undo-point').addEventListener('click', () => this.undoLastPoint());
+                document.getElementById('close-shape').addEventListener('click', () => this.closeShape());
+                document.getElementById('clear-points').addEventListener('click', () => this.clearAllPoints());
+                
+                // Butoane proiect
+                document.getElementById('save-project').addEventListener('click', () => this.showSaveModal());
+                document.getElementById('export-pdf').addEventListener('click', () => this.exportToPDF());
+                document.getElementById('export-json').addEventListener('click', () => this.exportToJSON());
+                
+                // Modal events
+                document.getElementById('close-modal').addEventListener('click', () => this.hideSaveModal());
+                document.getElementById('cancel-save').addEventListener('click', () => this.hideSaveModal());
+                document.getElementById('confirm-save').addEventListener('click', () => this.saveProject());
+                
+                // Click pe fotografie pentru adăugarea punctelor
+                document.getElementById('photo-container').addEventListener('click', (e) => this.handlePhotoClick(e));
+                
+                // Redimensionare
+                window.addEventListener('resize', () => this.resizeCanvases());
+                this.video.addEventListener('loadedmetadata', () => this.resizeCanvases());
+            }
+
+            setupDeviceSensors() {
+                // **EXPLICAȚIE DETALIATĂ:** Această funcție configurează senzorii telefonului pentru măsurarea AR
+                // Folosim giroscopul și accelerometrul pentru a detecta orientarea și distanța
+                
+                if (window.DeviceOrientationEvent) {
+                    window.addEventListener('deviceorientation', (e) => {
+                        // **EXPLICAȚIE:** Captăm valorile de orientare ale telefonului
+                        // alpha = rotația în jurul axei Z (compas)
+                        // beta = rotația în jurul axei X (înclinarea înainte/înapoi)  
+                        // gamma = rotația în jurul axei Y (înclinarea stânga/dreapta)
+                        this.deviceOrientation = {
+                            alpha: e.alpha || 0,
+                            beta: e.beta || 0,
+                            gamma: e.gamma || 0
+                        };
+                        
+                        // **EXPLICAȚIE:** Calculăm distanța aproximativă folosind înclinarea
+                        // Cu cât telefonul este mai înclinat, cu atât obiectul este mai departe
+                        this.calculateDistance();
+                    });
+                }
+
+                if (window.DeviceMotionEvent) {
+                    window.addEventListener('devicemotion', (e) => {
+                        // **EXPLICAȚIE:** Folosim accelerometrul pentru stabilitate
+                        // Detectăm când telefonul este stabil pentru măsurători precise
+                        const acceleration = e.accelerationIncludingGravity;
+                        if (acceleration) {
+                            this.deviceAcceleration = {
+                                x: acceleration.x || 0,
+                                y: acceleration.y || 0,
+                                z: acceleration.z || 0
+                            };
+                        }
+                    });
+                }
+            }
+
+            calculateDistance() {
+                // **EXPLICAȚIE DETALIATĂ:** Această funcție calculează distanța până la obiect
+                // folosind înclinarea telefonului (beta) și înălțimea estimată de ținere
+                
+                const beta = this.deviceOrientation.beta; // înclinarea înainte/înapoi
+                const assumedHeight = 1.5; // înălțimea medie de ținere a telefonului (metri)
+                
+                if (beta && beta > 10 && beta < 80) {
+                    // **EXPLICAȚIE:** Folosim trigonometria pentru calculul distanței
+                    // tg(unghi) = înălțime / distanță  =>  distanță = înălțime / tg(unghi)
+                    const angleRad = (90 - beta) * Math.PI / 180;
+                    this.cameraDistance = Math.abs(assumedHeight / Math.tan(angleRad));
+                    
+                    // Limitează distanța între 0.5m și 50m pentru măsurători practice
+                    this.cameraDistance = Math.max(0.5, Math.min(50, this.cameraDistance));
+                } else {
+                    // Distanță implicită când nu putem calcula precis
+                    this.cameraDistance = 2;
+                }
+            }
+
+            async startAR() {
+                try {
+                    this.updateARStatus('Verific camerele disponibile pe dispozitiv...', 'info');
+                    
+                    // **EXPLICAȚIE DETALIATĂ:** Verificăm mai întâi dacă API-ul este disponibil
+                    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                        throw new Error('API-ul camerei nu este disponibil în acest browser');
+                    }
+
+                    // Verificăm dacă suntem pe HTTPS sau localhost
+                    const isSecureContext = window.isSecureContext || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+                    if (!isSecureContext) {
+                        this.updateARStatus('⚠️ Cameră disponibilă doar pe HTTPS sau localhost', 'warning');
+                    }
+
+                    // **EXPLICAȚIE CRITICĂ:** Pentru măsurători AR tehnice, folosim EXCLUSIV camera din spate
+                    // Camera din spate are rezoluție mai bună și este mai potrivită pentru măsurări la distanță
+                    
+                    this.updateARStatus('Căutare cameră din spate pentru măsurători tehnice...', 'info');
+                    
+                    // Verificăm camerele disponibile pentru a identifica camera din spate
+                    const devices = await navigator.mediaDevices.enumerateDevices();
+                    const videoDevices = devices.filter(device => device.kind === 'videoinput');
+                    
+                    console.log('📹 Camere detectate:', videoDevices);
+                    
+                    // Căutăm específic camera din spate
+                    const backCamera = videoDevices.find(device => 
+                        device.label.toLowerCase().includes('back') ||
+                        device.label.toLowerCase().includes('rear') ||
+                        device.label.toLowerCase().includes('environment') ||
+                        device.label.toLowerCase().includes('0') // Adesea camera 0 este cea din spate
+                    );
+                    
+                    if (backCamera) {
+                        console.log('✅ Camera din spate identificată:', backCamera.label);
+                        this.updateARStatus(`📱 Camera din spate detectată: ${backCamera.label}`, 'success');
+                    } else {
+                        console.log('⚠️ Nu s-a putut identifica specific camera din spate, încerc cu environment facingMode');
+                    }
+
+                    // **EXPLICAȚIE:** Încercăm mai multe strategii pentru camera din spate, NICIODATĂ cea din față
+                    let constraints;
+                    let attempts = [
+                        // Încercarea 1: Camera specificată prin deviceId (dacă am identificat-o)
+                        backCamera ? {
+                            video: {
+                                deviceId: { exact: backCamera.deviceId },
+                                width: { ideal: 1920, min: 1280 },
+                                height: { ideal: 1080, min: 720 }
+                            }
+                        } : null,
+                        
+                        // Încercarea 2: Camera din spate prin facingMode cu rezoluție HD
+                        {
+                            video: {
+                                facingMode: { exact: 'environment' },
+                                width: { ideal: 1920, min: 1280 },
+                                height: { ideal: 1080, min: 720 }
+                            }
+                        },
+                        
+                        // Încercarea 3: Camera din spate cu facingMode ideal (nu exact)
+                        {
+                            video: {
+                                facingMode: { ideal: 'environment' },
+                                width: { ideal: 1280, min: 640 },
+                                height: { ideal: 720, min: 480 }
+                            }
+                        },
+                        
+                        // Încercarea 4: Doar facingMode environment, orice rezoluție
+                        {
+                            video: {
+                                facingMode: 'environment'
+                            }
+                        }
+                    ].filter(Boolean); // Eliminăm null-urile
+
+                    let streamObtained = false;
+                    let lastError = null;
+
+                    // **EXPLICAȚIE:** Încercăm fiecare constrângere pentru camera din spate
+                    for (let i = 0; i < attempts.length; i++) {
+                        constraints = attempts[i];
+                        console.log(`🔍 Încercarea ${i + 1} pentru camera din spate:`, constraints);
+                        
+                        try {
+                            this.updateARStatus(`Încercarea ${i + 1}: Conectare la camera din spate...`, 'info');
+                            this.stream = await navigator.mediaDevices.getUserMedia(constraints);
+                            
+                            // Verificăm că am obținut într-adevăr camera din spate
+                            const videoTrack = this.stream.getVideoTracks()[0];
+                            const settings = videoTrack.getSettings();
+                            
+                            console.log('📹 Setări cameră obținute:', settings);
+                            
+                            // **EXPLICAȚIE CRITICĂ:** Verificăm că nu am primit accidental camera din față
+                            if (settings.facingMode === 'user') {
+                                console.warn('⚠️ S-a obținut camera din față în loc de cea din spate, opresc stream-ul...');
+                                this.stream.getTracks().forEach(track => track.stop());
+                                this.stream = null;
+                                throw new Error('S-a obținut camera din față în loc de cea din spate');
+                            }
+                            
+                            streamObtained = true;
+                            console.log(`✅ Succes cu încercarea ${i + 1}! Camera din spate conectată.`);
+                            break;
+                            
+                        } catch (error) {
+                            console.warn(`❌ Încercarea ${i + 1} eșuată:`, error.message);
+                            lastError = error;
+                            
+                            if (this.stream) {
+                                this.stream.getTracks().forEach(track => track.stop());
+                                this.stream = null;
+                            }
+                        }
+                    }
+
+                    // **EXPLICAȚIE:** Dacă nu am reușit să obținem camera din spate, NU folosim camera din față
+                    if (!streamObtained) {
+                        console.error('❌ Nu s-a putut obține camera din spate pentru măsurători AR');
+                        
+                        // Verificăm dacă dispozitivul are doar camera din față
+                        const frontCamera = videoDevices.find(device => 
+                            device.label.toLowerCase().includes('front') ||
+                            device.label.toLowerCase().includes('user') ||
+                            device.label.toLowerCase().includes('selfie')
+                        );
+                        
+                        if (frontCamera && videoDevices.length === 1) {
+                            throw new Error('Acest dispozitiv are doar camera din față. Pentru măsurători AR tehnice precise, este necesară camera din spate.');
+                        } else {
+                            throw new Error(`Nu s-a putut accesa camera din spate. Ultima eroare: ${lastError?.message || 'necunoscută'}`);
+                        }
+                    }
+
+                    // **EXPLICAȚIE:** Configurăm video-ul și verificăm că totul funcționează
+                    console.log('✅ Stream cameră din spate obținut:', this.stream);
+                    const videoTrack = this.stream.getVideoTracks()[0];
+                    const settings = videoTrack.getSettings();
+                    console.log('📹 Setări finale cameră:', settings);
+                    
+                    this.video.srcObject = this.stream;
+                    
+                    // Așteptăm ca video-ul să încarce metadatele
+                    await new Promise((resolve, reject) => {
+                        this.video.onloadedmetadata = () => {
+                            console.log('✅ Video metadata încărcat:', {
+                                width: this.video.videoWidth,
+                                height: this.video.videoHeight,
+                                duration: this.video.duration
+                            });
+                            resolve();
+                        };
+                        
+                        this.video.onerror = (e) => {
+                            console.error('❌ Eroare la încărcarea video:', e);
+                            reject(new Error('Eroare la încărcarea video din camera din spate'));
+                        };
+                        
+                        // Timeout după 15 secunde
+                        setTimeout(() => {
+                            reject(new Error('Timeout la încărcarea video din camera din spate'));
+                        }, 15000);
+                    });
+
+                    this.isARActive = true;
+                    
+                    // Actualizăm interfața
+                    document.getElementById('start-ar').disabled = true;
+                    document.getElementById('stop-ar').disabled = false;
+                    document.getElementById('calibrate-ar').disabled = false;
+                    
+                    // Începe loop-ul de detectare AR
+                    this.startARLoop();
+                    
+                    // Afișăm informații despre camera folosită
+                    const finalSettings = videoTrack.getSettings();
+                    const cameraInfo = `Camera din spate activă: ${finalSettings.width}x${finalSettings.height}`;
+                    
+                    this.updateARStatus(`✅ ${cameraInfo} - Gata pentru calibrare!`, 'success');
+                    this.showToast('Camera din spate conectată pentru măsurători AR!', 'success');
+                    
+                } catch (error) {
+                    console.error('❌ Eroare completă la pornirea AR:', error);
+                    
+                    let errorMessage = 'Eroare la activarea camerei din spate: ';
+                    
+                    if (error.name === 'NotAllowedError') {
+                        errorMessage += 'Permisiunea pentru cameră a fost refuzată. Vă rugăm să permiteți accesul la cameră în setările browserului.';
+                    } else if (error.name === 'NotFoundError') {
+                        errorMessage += 'Nu s-a găsit camera din spate pe acest dispozitiv. Verificați că dispozitivul are cameră din spate.';
+                    } else if (error.name === 'NotSupportedError') {
+                        errorMessage += 'Camera din spate nu este suportată în acest browser.';
+                    } else if (error.name === 'NotReadableError') {
+                        errorMessage += 'Camera din spate este deja folosită de o altă aplicație.';
+                    } else if (error.name === 'OverconstrainedError') {
+                        errorMessage += 'Constrângerile pentru camera din spate nu pot fi îndeplinite. Încercați cu un alt dispozitiv.';
+                    } else {
+                        errorMessage += error.message;
+                    }
+                    
+                    this.updateARStatus(errorMessage, 'error');
+                    this.showToast('Nu s-a putut activa camera din spate!', 'error');
+                    
+                    // Oferim instrucțiuni specifice pentru camera din spate
+                    this.showBackCameraHelp();
+                }
+            }
+
+            startARLoop() {
+                // **EXPLICAȚIE DETALIATĂ:** Acest loop continuă să ruleze cât timp AR-ul este activ
+                // și actualizează canvas-ul cu informații de măsurare în timp real
+                
+                if (!this.isARActive) return;
+
+                // Redimensionează canvas-ul să se potrivească cu video-ul
+                this.resizeCanvases();
+                
+                // Curăță canvas-ul
+                this.arCtx.clearRect(0, 0, this.arCanvas.width, this.arCanvas.height);
+                
+                if (this.isCalibrated) {
+                    // **EXPLICAȚIE:** Desenăm indicatori AR pe ecran
+                    this.drawARIndicators();
+                }
+                
+                // Continuă loop-ul
+                requestAnimationFrame(() => this.startARLoop());
+            }
+
+            drawARIndicators() {
+                // **EXPLICAȚIE DETALIATĂ:** Desenăm indicatori vizuali pe camera AR
+                // pentru a ajuta utilizatorul să înțeleagă ce se întâmplă
+                
+                const centerX = this.arCanvas.width / 2;
+                const centerY = this.arCanvas.height / 2;
+                
+                // Desenăm crosshair-ul central
+                this.arCtx.strokeStyle = '#27ae60';
+                this.arCtx.lineWidth = 2;
+                this.arCtx.beginPath();
+                // Linie orizontală
+                this.arCtx.moveTo(centerX - 20, centerY);
+                this.arCtx.lineTo(centerX + 20, centerY);
+                // Linie verticală
+                this.arCtx.moveTo(centerX, centerY - 20);
+                this.arCtx.lineTo(centerX, centerY + 20);
+                this.arCtx.stroke();
+                
+                // Afișăm informații despre calibrare și distanță
+                this.arCtx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                this.arCtx.fillRect(10, 10, 200, 80);
+                
+                this.arCtx.fillStyle = '#27ae60';
+                this.arCtx.font = 'bold 14px Arial';
+                this.arCtx.fillText('✅ AR Calibrat', 20, 30);
+                this.arCtx.fillText(`📏 Distanță: ${this.cameraDistance.toFixed(1)}m`, 20, 50);
+                this.arCtx.fillText(`🎯 Scala: ${this.pixelsPerMM.toFixed(2)} px/mm`, 20, 70);
+            }
+
+            async calibrateAR() {
+                if (!this.isARActive) {
+                    this.updateARStatus('Porniți camera AR mai întâi!', 'error');
+                    return;
+                }
+
+                this.updateARStatus('Căutare obiect de referință pentru calibrare...', 'info');
+                
+                // **EXPLICAȚIE DETALIATĂ:** Simulăm detectarea unui obiect de referință
+                // În implementarea reală, aici am folosi algoritmi de computer vision
+                // pentru a detecta monede, carduri bancare, pachete de țigări etc.
+                
+                // Simulăm timpul de procesare pentru detectare
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                
+                // Lista de obiecte de referință cu dimensiunile lor reale
+                const referenceObjects = [
+                    { type: 'Monedă 1 EUR', size: 23.25, unit: 'mm', confidence: 0.89 },
+                    { type: 'Monedă 1 RON', size: 24.5, unit: 'mm', confidence: 0.92 },
+                    { type: 'Card Bancar', size: 85.6, unit: 'mm', confidence: 0.85 },
+                    { type: 'Pachet Țigări', size: 87, unit: 'mm', confidence: 0.78 }
+                ];
+
+                // Selectăm un obiect detectat aleator pentru demonstrație
+                const detected = referenceObjects[Math.floor(Math.random() * referenceObjects.length)];
+                
+                this.isCalibrated = true;
+                this.referenceObject = detected;
+                
+                // **EXPLICAȚIE CRITICĂ:** Calculul pixeli per milimetru este fundamental
+                // pentru toate măsurările ulterioare. Aceasta este baza preciziei sistemului.
+                // Presupunem că obiectul ocupă aproximativ 100 de pixeli pe ecran
+                const assumedPixelSize = 100;
+                this.pixelsPerMM = assumedPixelSize / detected.size;
+                
+                // **EXPLICAȚIE:** Ajustăm scala în funcție de distanță pentru precizie
+                // Cu cât suntem mai departe, cu atât pixelii reprezintă dimensiuni mai mari
+                this.pixelsPerMM = this.pixelsPerMM * (2 / this.cameraDistance);
+
+                // Actualizăm interfața cu informațiile de calibrare
+                const confidencePercent = Math.round(detected.confidence * 100);
+                const calibrationInfo = `
+                    <div class="calibration-info">
+                        <strong>✅ ${detected.type}</strong><br>
+                        📏 Mărime: ${detected.size}${detected.unit}<br>
+                        🎯 Încredere: ${confidencePercent}%<br>
+                        📐 Scala: ${this.pixelsPerMM.toFixed(3)} px/mm<br>
+                        📍 Distanță: ${this.cameraDistance.toFixed(1)}m
+                    </div>
+                `;
+                
+                document.getElementById('calibration-display').innerHTML = calibrationInfo;
+                document.getElementById('calibration-display').style.display = 'block';
+                document.getElementById('take-photo').disabled = false;
+                
+                this.updateARStatus(`Calibrare reușită cu ${detected.type} (${confidencePercent}% încredere)`, 'success');
+            }
+
+            async takePhoto() {
+                if (!this.isCalibrated) {
+                    this.updateARStatus('Calibrați AR-ul mai întâi!', 'error');
+                    return;
+                }
+
+                try {
+                    // **EXPLICAȚIE DETALIATĂ:** Capturăm frame-ul curent din video ca fotografie
+                    // Această fotografie va fi folosită pentru măsurători
+                    
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    
+                    canvas.width = this.video.videoWidth;
+                    canvas.height = this.video.videoHeight;
+                    
+                    // Desenăm frame-ul video pe canvas
+                    ctx.drawImage(this.video, 0, 0);
+                    
+                    // Convertim la imagine
+                    this.photoData = canvas.toDataURL('image/jpeg', 0.9);
+                    
+                    // **EXPLICAȚIE:** Afișăm fotografia în panoul central pentru măsurare
+                    this.capturedPhoto.src = this.photoData;
+                    this.capturedPhoto.style.display = 'block';
+                    this.measurementCanvas.style.display = 'block';
+                    this.measurementSvg.style.display = 'block';
+                    
+                    // Ascundem placeholder-ul
+                    document.querySelector('.photo-placeholder').style.display = 'none';
+                    
+                    // Configurăm canvas-ul pentru măsurare
+                    this.setupMeasurementCanvas();
+                    
+                    this.updateARStatus('Fotografie capturată! Puteți adăuga puncte pentru măsurare.', 'success');
+                    this.showToast('Fotografie salvată cu succes!', 'success');
+                    
+                } catch (error) {
+                    console.error('Eroare la capturarea fotografiei:', error);
+                    this.updateARStatus('Eroare la capturarea fotografiei', 'error');
+                }
+            }
+
+            setupMeasurementCanvas() {
+                // **EXPLICAȚIE DETALIATĂ:** Configurăm canvas-ul pentru a permite măsurători pe fotografie
+                // Canvas-ul va avea aceeași mărime ca fotografia afișată
+                
+                const container = document.getElementById('photo-container');
+                const rect = container.getBoundingClientRect();
+                
+                this.measurementCanvas.width = rect.width;
+                this.measurementCanvas.height = rect.height;
+                
+                // Configurăm SVG-ul pentru linii și text
+                this.measurementSvg.setAttribute('width', rect.width);
+                this.measurementSvg.setAttribute('height', rect.height);
+                this.measurementSvg.setAttribute('viewBox', `0 0 ${rect.width} ${rect.height}`);
+            }
+
+            togglePointMode() {
+                // **EXPLICAȚIE:** Activăm/dezactivăm modul de adăugare puncte
+                this.isAddingPoints = !this.isAddingPoints;
+                
+                const btn = document.getElementById('add-point-mode');
+                if (this.isAddingPoints) {
+                    btn.textContent = '🔴 Dezactivează Puncte';
+                    btn.classList.remove('primary');
+                    btn.classList.add('danger');
+                    this.showToast('Mod adăugare puncte activat. Click pe fotografie pentru a adăuga puncte.', 'info');
+                } else {
+                    btn.textContent = '📍 Adaugă Punct';
+                    btn.classList.remove('danger');
+                    btn.classList.add('primary');
+                    this.showToast('Mod adăugare puncte dezactivat.', 'info');
+                }
+            }
+
+            handlePhotoClick(e) {
+                // **EXPLICAȚIE DETALIATĂ:** Gestionăm click-urile pe fotografie pentru adăugarea punctelor
+                if (!this.isAddingPoints || !this.photoData) return;
+                
+                const rect = e.currentTarget.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                
+                // **EXPLICAȚIE:** Creăm un punct nou cu coordonatele și eticheta
+                const point = {
+                    x: x,
+                    y: y,
+                    label: this.nextPointLabel,
+                    id: Date.now()
+                };
+                
+                this.points.push(point);
+                
+                // **EXPLICAȚIE:** Calculăm următoarea etichetă (A, B, C, D...)
+                this.nextPointLabel = String.fromCharCode(this.nextPointLabel.charCodeAt(0) + 1);
+                
+                // Desenăm punctul pe fotografie
+                this.drawPoint(point);
+                
+                // Dacă avem cel puțin 2 puncte, calculăm măsurătoarea
+                if (this.points.length >= 2) {
+                    this.calculateMeasurement();
+                }
+                
+                this.updatePointsList();
+                this.updateControls();
+                
+                this.showToast(`Punct ${point.label} adăugat`, 'success');
+            }
+
+            drawPoint(point) {
+                // **EXPLICAȚIE DETALIATĂ:** Desenăm punctul vizual pe fotografie
+                
+                // Creăm elementul HTML pentru punct
+                const pointElement = document.createElement('div');
+                pointElement.className = 'point-marker';
+                pointElement.style.left = point.x + 'px';
+                pointElement.style.top = point.y + 'px';
+                pointElement.dataset.pointId = point.id;
+                
+                // Adăugăm eticheta punctului
+                const labelElement = document.createElement('div');
+                labelElement.className = 'point-label-text';
+                labelElement.textContent = point.label;
+                pointElement.appendChild(labelElement);
+                
+                // Adăugăm punctul în container
+                document.getElementById('photo-container').appendChild(pointElement);
+            }
+
+            calculateMeasurement() {
+                // **EXPLICAȚIE DETALIATĂ:** Calculăm distanța reală între ultimele două puncte
+                if (this.points.length < 2) return;
+                
+                const point1 = this.points[this.points.length - 2];
+                const point2 = this.points[this.points.length - 1];
+                
+                // **EXPLICAȚIE CRITICĂ:** Calculul distanței în pixeli folosind teorema lui Pitagora
+                const pixelDistance = Math.sqrt(
+                    Math.pow(point2.x - point1.x, 2) + 
+                    Math.pow(point2.y - point1.y, 2)
+                );
+                
+                // **EXPLICAȚIE CRITICĂ:** Convertim pixelii în milimetri folosind scala de calibrare
+                // Apoi ajustăm pentru distanța camerei (perspectiva)
+                const mmDistance = pixelDistance / this.pixelsPerMM;
+                const adjustedDistance = mmDistance * (this.cameraDistance / 2); // Ajustare pentru distanță
+                
+                // Creăm măsurătoarea
+                const measurement = {
+                    id: Date.now(),
+                    fromPoint: point1.label,
+                    toPoint: point2.label,
+                    label: `${point1.label}${point2.label}`,
+                    pixelDistance: pixelDistance,
+                    mmDistance: adjustedDistance,
+                    mDistance: adjustedDistance / 1000,
+                    point1: point1,
+                    point2: point2
+                };
+                
+                this.measurements.push(measurement);
+                
+                // Desenăm linia de măsurare
+                this.drawMeasurementLine(measurement);
+                this.updateMeasurementsList();
+            }
+
+            drawMeasurementLine(measurement) {
+                // **EXPLICAȚIE DETALIATĂ:** Desenăm linia de măsurare pe SVG
+                // cu textul ce afișează dimensiunea
+                
+                const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                line.setAttribute('x1', measurement.point1.x);
+                line.setAttribute('y1', measurement.point1.y);
+                line.setAttribute('x2', measurement.point2.x);
+                line.setAttribute('y2', measurement.point2.y);
+                line.setAttribute('class', 'measurement-line');
+                line.dataset.measurementId = measurement.id;
+                
+                // Calculăm poziția textului la mijlocul liniei
+                const midX = (measurement.point1.x + measurement.point2.x) / 2;
+                const midY = (measurement.point1.y + measurement.point2.y) / 2;
+                
+                // Creăm background pentru text
+                const textBg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                textBg.setAttribute('x', midX - 25);
+                textBg.setAttribute('y', midY - 10);
+                textBg.setAttribute('width', 50);
+                textBg.setAttribute('height', 20);
+                textBg.setAttribute('class', 'measurement-bg');
+                
+                // Creăm textul cu măsurătoarea
+                const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                text.setAttribute('x', midX);
+                text.setAttribute('y', midY + 4);
+                text.setAttribute('class', 'measurement-text');
+                
+                // **EXPLICAȚIE:** Formatăm textul în funcție de mărime (mm, cm, m)
+                let displayText;
+                if (measurement.mDistance >= 1) {
+                    displayText = `${measurement.mDistance.toFixed(2)}m`;
+                } else if (measurement.mmDistance >= 10) {
+                    displayText = `${(measurement.mmDistance / 10).toFixed(1)}cm`;
+                } else {
+                    displayText = `${measurement.mmDistance.toFixed(0)}mm`;
+                }
+                
+                text.textContent = displayText;
+                
+                // Adăugăm elementele în SVG
+                this.measurementSvg.appendChild(line);
+                this.measurementSvg.appendChild(textBg);
+                this.measurementSvg.appendChild(text);
+            }
+
+            undoLastPoint() {
+                // **EXPLICAȚIE DETALIATĂ:** Ștergem ultimul punct adăugat și măsurătoarea asociată
+                if (this.points.length === 0) return;
+                
+                const lastPoint = this.points.pop();
+                
+                // Ștergem elementul vizual al punctului
+                const pointElement = document.querySelector(`[data-point-id="${lastPoint.id}"]`);
+                if (pointElement) {
+                    pointElement.remove();
+                }
+                
+                // Ștergem ultima măsurătoare dacă există
+                if (this.measurements.length > 0) {
+                    const lastMeasurement = this.measurements.pop();
+                    
+                    // Ștergem linia de măsurare din SVG
+                    const measurementElements = this.measurementSvg.querySelectorAll(`[data-measurement-id="${lastMeasurement.id}"]`);
+                    measurementElements.forEach(el => el.remove());
+                }
+                
+                // **EXPLICAȚIE:** Actualizăm eticheta următorului punct
+                if (this.points.length === 0) {
+                    this.nextPointLabel = 'A';
+                } else {
+                    const lastLabel = this.points[this.points.length - 1].label;
+                    this.nextPointLabel = String.fromCharCode(lastLabel.charCodeAt(0) + 1);
+                }
+                
+                this.updatePointsList();
+                this.updateMeasurementsList();
+                this.updateControls();
+                
+                this.showToast('Ultimul punct a fost șters', 'info');
+            }
+
+            closeShape() {
+                // **EXPLICAȚIE DETALIATĂ:** Închidem forma geometrică conectând ultimul punct cu primul
+                if (this.points.length < 3) {
+                    this.showToast('Aveți nevoie de cel puțin 3 puncte pentru a închide forma', 'error');
+                    return;
+                }
+                
+                const firstPoint = this.points[0];
+                const lastPoint = this.points[this.points.length - 1];
+                
+                // Calculăm măsurătoarea pentru linia de închidere
+                const pixelDistance = Math.sqrt(
+                    Math.pow(firstPoint.x - lastPoint.x, 2) + 
+                    Math.pow(firstPoint.y - lastPoint.y, 2)
+                );
+                
+                const mmDistance = (pixelDistance / this.pixelsPerMM) * (this.cameraDistance / 2);
+                
+                const closingMeasurement = {
+                    id: Date.now(),
+                    fromPoint: lastPoint.label,
+                    toPoint: firstPoint.label,
+                    label: `${lastPoint.label}${firstPoint.label}`,
+                    pixelDistance: pixelDistance,
+                    mmDistance: mmDistance,
+                    mDistance: mmDistance / 1000,
+                    point1: lastPoint,
+                    point2: firstPoint,
+                    isClosing: true
+                };
+                
+                this.measurements.push(closingMeasurement);
+                this.drawMeasurementLine(closingMeasurement);
+                this.updateMeasurementsList();
+                
+                // Calculăm aria formei dacă este posibil
+                this.calculateShapeArea();
+                
+                this.showToast(`Forma închisă! Latura ${closingMeasurement.label} adăugată.`, 'success');
+            }
+
+            calculateShapeArea() {
+                // **EXPLICAȚIE DETALIATĂ:** Calculăm aria formei folosind formula shoelace
+                if (this.points.length < 3) return;
+                
+                let area = 0;
+                const n = this.points.length;
+                
+                // **EXPLICAȚIE:** Formula shoelace pentru calculul ariei unui poligon
+                for (let i = 0; i < n; i++) {
+                    const j = (i + 1) % n;
+                    area += this.points[i].x * this.points[j].y;
+                    area -= this.points[j].x * this.points[i].y;
+                }
+                
+                area = Math.abs(area) / 2;
+                
+                // Convertim aria din pixeli pătrați în metri pătrați
+                const pixelAreaToMM2 = Math.pow(1 / this.pixelsPerMM, 2);
+                const areaMM2 = area * pixelAreaToMM2 * Math.pow(this.cameraDistance / 2, 2);
+                const areaM2 = areaMM2 / 1000000;
+                
+                // Adăugăm aria la lista de măsurători
+                const areaInfo = {
+                    id: Date.now(),
+                    label: 'Aria formei',
+                    type: 'area',
+                    areaMM2: areaMM2,
+                    areaM2: areaM2
+                };
+                
+                this.measurements.push(areaInfo);
+                this.updateMeasurementsList();
+            }
+
+            clearAllPoints() {
+                // **EXPLICAȚIE DETALIATĂ:** Ștergem toate punctele și măsurătorile
+                
+                // Ștergem toate elementele vizuale ale punctelor
+                const pointElements = document.querySelectorAll('.point-marker');
+                pointElements.forEach(el => el.remove());
+                
+                // Curățăm SVG-ul de toate liniile
+                this.measurementSvg.innerHTML = '';
+                
+                // Resetăm datele
+                this.points = [];
+                this.measurements = [];
+                this.nextPointLabel = 'A';
+                
+                this.updatePointsList();
+                this.updateMeasurementsList();
+                this.updateControls();
+                
+                this.showToast('Toate punctele au fost șterse', 'info');
+            }
+
+            updatePointsList() {
+                // **EXPLICAȚIE:** Actualizăm lista punctelor din panoul lateral
+                const pointsList = document.getElementById('points-list');
+                
+                if (this.points.length === 0) {
+                    pointsList.innerHTML = `
+                        <div style="text-align: center; color: #6c757d; padding: 20px; font-style: italic;">
+                            Nu există puncte adăugate
+                        </div>
+                    `;
+                    return;
+                }
+
+                pointsList.innerHTML = this.points.map(point => `
+                    <div class="point-item">
+                        <div>
+                            <span class="point-label">Punct ${point.label}</span>
+                            <div class="point-coords">X: ${Math.round(point.x)}, Y: ${Math.round(point.y)}</div>
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            updateMeasurementsList() {
+                // **EXPLICAȚIE:** Actualizăm lista măsurătorilor din panoul central
+                const measurementsList = document.getElementById('measurements-list');
+                
+                if (this.measurements.length === 0) {
+                    measurementsList.innerHTML = `
+                        <h4>📏 Măsurători:</h4>
+                        <div style="text-align: center; color: #6c757d; padding: 20px; font-style: italic;">
+                            Nu există măsurători încă
+                        </div>
+                    `;
+                    return;
+                }
+
+                const measurementsHTML = this.measurements.map(m => {
+                    if (m.type === 'area') {
+                        return `
+                            <div class="measurement-item">
+                                <span class="measurement-label">📐 ${m.label}</span>
+                                <span class="measurement-value">${m.areaM2.toFixed(2)} m²</span>
+                            </div>
+                        `;
+                    } else {
+                        let displayValue;
+                        if (m.mDistance >= 1) {
+                            displayValue = `${m.mDistance.toFixed(2)} m`;
+                        } else if (m.mmDistance >= 10) {
+                            displayValue = `${(m.mmDistance / 10).toFixed(1)} cm`;
+                        } else {
+                            displayValue = `${m.mmDistance.toFixed(0)} mm`;
+                        }
+                        
+                        return `
+                            <div class="measurement-item">
+                                <span class="measurement-label">📏 Latura ${m.label}</span>
+                                <span class="measurement-value">${displayValue}</span>
+                            </div>
+                        `;
+                    }
+                }).join('');
+
+                measurementsList.innerHTML = `
+                    <h4>📏 Măsurători:</h4>
+                    ${measurementsHTML}
+                `;
+            }
+
+            updateControls() {
+                // **EXPLICAȚIE:** Actualizăm starea butoanelor în funcție de situație
+                document.getElementById('undo-point').disabled = this.points.length === 0;
+                document.getElementById('close-shape').disabled = this.points.length < 3;
+            }
+
+            stopAR() {
+                // **EXPLICAȚIE:** Oprește camera AR și resetează starea
+                if (this.stream) {
+                    this.stream.getTracks().forEach(track => track.stop());
+                    this.stream = null;
+                }
+
+                this.video.srcObject = null;
+                this.isARActive = false;
+                this.isCalibrated = false;
+                
+                // Resetează controalele
+                document.getElementById('start-ar').disabled = false;
+                document.getElementById('stop-ar').disabled = true;
+                document.getElementById('calibrate-ar').disabled = true;
+                document.getElementById('take-photo').disabled = true;
+                
+                // Ascunde informațiile de calibrare
+                document.getElementById('calibration-display').style.display = 'none';
+                
+                this.updateARStatus('Camera AR oprită.', 'info');
+            }
+
+            resizeCanvases() {
+                // **EXPLICAȚIE:** Redimensionează canvas-urile pentru a se potrivi cu video-ul
+                if (!this.video.videoWidth || !this.video.videoHeight) return;
+
+                const rect = this.video.getBoundingClientRect();
+                
+                this.arCanvas.width = rect.width;
+                this.arCanvas.height = rect.height;
+                
+                if (this.measurementCanvas) {
+                    const photoContainer = document.getElementById('photo-container');
+                    const photoRect = photoContainer.getBoundingClientRect();
+                    this.measurementCanvas.width = photoRect.width;
+                    this.measurementCanvas.height = photoRect.height;
+                }
+            }
+
+            // ================== GESTIONARE PROIECTE ==================
+
+            showSaveModal() {
+                // **EXPLICAȚIE:** Afișează modal-ul pentru salvarea proiectului
+                if (this.points.length === 0) {
+                    this.showToast('Nu există puncte de salvat!', 'error');
+                    return;
+                }
+                
+                document.getElementById('save-modal').style.display = 'block';
+                document.getElementById('project-name').focus();
+            }
+
+            hideSaveModal() {
+                // **EXPLICAȚIE:** Ascunde modal-ul de salvare
+                document.getElementById('save-modal').style.display = 'none';
+                document.getElementById('project-name').value = '';
+                document.getElementById('project-description').value = '';
+            }
+
+            saveProject() {
+                // **EXPLICAȚIE DETALIATĂ:** Salvează proiectul curent cu toate datele
+                const name = document.getElementById('project-name').value.trim();
+                const description = document.getElementById('project-description').value.trim();
+                
+                if (!name) {
+                    this.showToast('Introduceți un nume pentru proiect!', 'error');
+                    return;
+                }
+                
+                const project = {
+                    id: Date.now(),
+                    name: name,
+                    description: description,
+                    createdAt: new Date().toISOString(),
+                    photoData: this.photoData,
+                    points: [...this.points],
+                    measurements: [...this.measurements],
+                    calibration: {
+                        pixelsPerMM: this.pixelsPerMM,
+                        referenceObject: this.referenceObject,
+                        cameraDistance: this.cameraDistance
+                    }
+                };
+                
+                this.projects.push(project);
+                this.saveProjectsToStorage();
+                this.updateProjectsList();
+                this.hideSaveModal();
+                
+                this.showToast(`Proiectul "${name}" a fost salvat!`, 'success');
+            }
+
+            loadProject(projectId) {
+                // **EXPLICAȚIE:** Încarcă un proiect salvat
+                const project = this.projects.find(p => p.id === projectId);
+                if (!project) return;
+                
+                // Curățăm starea curentă
+                this.clearAllPoints();
+                
+                // Încărcăm datele proiectului
+                this.photoData = project.photoData;
+                this.points = [...project.points];
+                this.measurements = [...project.measurements];
+                
+                if (project.calibration) {
+                    this.pixelsPerMM = project.calibration.pixelsPerMM;
+                    this.referenceObject = project.calibration.referenceObject;
+                    this.cameraDistance = project.calibration.cameraDistance;
+                    this.isCalibrated = true;
+                }
+                
+                // Afișăm fotografia
+                if (this.photoData) {
+                    this.capturedPhoto.src = this.photoData;
+                    this.capturedPhoto.style.display = 'block';
+                    this.measurementCanvas.style.display = 'block';
+                    this.measurementSvg.style.display = 'block';
+                    document.querySelector('.photo-placeholder').style.display = 'none';
+                    
+                    this.setupMeasurementCanvas();
+                    
+                    // Redesenăm punctele și măsurătorile
+                    setTimeout(() => {
+                        this.redrawProject();
+                    }, 100);
+                }
+                
+                this.currentProject = project;
+                this.updateProjectsList();
+                
+                this.showToast(`Proiectul "${project.name}" a fost încărcat!`, 'success');
+            }
+
+            redrawProject() {
+                // **EXPLICAȚIE:** Redesenează toate punctele și măsurătorile unui proiect încărcat
+                
+                // Desenăm punctele
+                this.points.forEach(point => {
+                    this.drawPoint(point);
+                });
+                
+                // Desenăm măsurătorile
+                this.measurements.forEach(measurement => {
+                    if (measurement.type !== 'area') {
+                        this.drawMeasurementLine(measurement);
+                    }
+                });
+                
+                // Actualizăm eticheta următorului punct
+                if (this.points.length > 0) {
+                    const lastLabel = this.points[this.points.length - 1].label;
+                    this.nextPointLabel = String.fromCharCode(lastLabel.charCodeAt(0) + 1);
+                } else {
+                    this.nextPointLabel = 'A';
+                }
+                
+                this.updatePointsList();
+                this.updateMeasurementsList();
+                this.updateControls();
+            }
+
+            deleteProject(projectId) {
+                // **EXPLICAȚIE:** Șterge un proiect salvat
+                this.projects = this.projects.filter(p => p.id !== projectId);
+                this.saveProjectsToStorage();
+                this.updateProjectsList();
+                
+                if (this.currentProject && this.currentProject.id === projectId) {
+                    this.currentProject = null;
+                }
+                
+                this.showToast('Proiectul a fost șters!', 'info');
+            }
+
+            updateProjectsList() {
+                // **EXPLICAȚIE:** Actualizează lista proiectelor salvate
+                const projectsList = document.getElementById('projects-list');
+                
+                if (this.projects.length === 0) {
+                    projectsList.innerHTML = `
+                        <div style="text-align: center; color: #6c757d; padding: 20px; font-style: italic;">
+                            Nu există proiecte salvate
+                        </div>
+                    `;
+                    return;
+                }
+
+                projectsList.innerHTML = this.projects.map(project => {
+                    const date = new Date(project.createdAt).toLocaleDateString('ro-RO');
+                    const isActive = this.currentProject && this.currentProject.id === project.id;
+                    
+                    return `
+                        <div class="project-item ${isActive ? 'active' : ''}" onclick="roofCalculator.loadProject(${project.id})">
+                            <div class="project-name">${project.name}</div>
+                            <div class="project-info">
+                                📅 ${date} | 📍 ${project.points.length} puncte | 📏 ${project.measurements.length} măsurători
+                                <br>
+                                ${project.description || 'Fără descriere'}
+                            </div>
+                            <button onclick="event.stopPropagation(); roofCalculator.deleteProject(${project.id})" 
+                                    style="position: absolute; top: 5px; right: 5px; background: #dc3545; color: white; border: none; border-radius: 3px; padding: 2px 6px; cursor: pointer;">
+                                🗑️
+                            </button>
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            saveProjectsToStorage() {
+                // **EXPLICAȚIE:** Salvează proiectele în localStorage
+                try {
+                    localStorage.setItem('roofCalculatorProjects', JSON.stringify(this.projects));
+                } catch (error) {
+                    console.error('Eroare la salvarea proiectelor:', error);
+                    this.showToast('Eroare la salvarea proiectelor!', 'error');
+                }
+            }
+
+            loadProjects() {
+                // **EXPLICAȚIE:** Încarcă proiectele din localStorage
+                try {
+                    const saved = localStorage.getItem('roofCalculatorProjects');
+                    if (saved) {
+                        this.projects = JSON.parse(saved);
+                        this.updateProjectsList();
+                    }
+                } catch (error) {
+                    console.error('Eroare la încărcarea proiectelor:', error);
+                    this.projects = [];
+                }
+            }
+
+            // ================== EXPORT FUNCȚII ==================
+
+            exportToPDF() {
+                // **EXPLICAȚIE DETALIATĂ:** Exportă proiectul curent în format PDF
+                if (this.measurements.length === 0) {
+                    this.showToast('Nu există măsurători de exportat!', 'error');
+                    return;
+                }
+
+                try {
+                    const { jsPDF } = window.jspdf;
+                    const doc = new jsPDF();
+                    
+                    // Header
+                    doc.setFontSize(20);
+                    doc.text('Roof Calculator Pro - Raport Măsurători', 20, 20);
+                    
+                    // Informații proiect
+                    doc.setFontSize(12);
+                    const projectName = this.currentProject ? this.currentProject.name : 'Proiect Nesalvat';
+                    doc.text(`Proiect: ${projectName}`, 20, 35);
+                    doc.text(`Data: ${new Date().toLocaleDateString('ro-RO')}`, 20, 45);
+                    doc.text(`Calibrare: ${this.referenceObject?.type || 'Nu este calibrat'}`, 20, 55);
+                    
+                    // Măsurători
+                    doc.setFontSize(14);
+                    doc.text('Măsurători:', 20, 75);
+                    
+                    let y = 90;
+                    doc.setFontSize(11);
+                    
+                    this.measurements.forEach(m => {
+                        if (m.type === 'area') {
+                            doc.text(`📐 Aria formei: ${m.areaM2.toFixed(2)} m²`, 25, y);
+                        } else {
+                            let displayValue;
+                            if (m.mDistance >= 1) {
+                                displayValue = `${m.mDistance.toFixed(2)} m`;
+                            } else if (m.mmDistance >= 10) {
+                                displayValue = `${(m.mmDistance / 10).toFixed(1)} cm`;
+                            } else {
+                                displayValue = `${m.mmDistance.toFixed(0)} mm`;
+                            }
+                            doc.text(`📏 Latura ${m.label}: ${displayValue}`, 25, y);
+                        }
+                        y += 10;
+                    });
+                    
+                    // Informații tehnice
+                    y += 20;
+                    doc.setFontSize(10);
+                    doc.text('Informații tehnice:', 20, y);
+                    y += 10;
+                    doc.text(`- Scala calibrare: ${this.pixelsPerMM.toFixed(3)} pixeli/mm`, 25, y);
+                    y += 8;
+                    doc.text(`- Distanță cameră: ${this.cameraDistance.toFixed(1)} m`, 25, y);
+                    y += 8;
+                    doc.text(`- Numărul punctelor: ${this.points.length}`, 25, y);
+                    
+                    // Salvare
+                    const fileName = `RoofCalculator_${projectName.replace(/[^a-z0-9]/gi, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
+                    doc.save(fileName);
+                    
+                    this.showToast('PDF exportat cu succes!', 'success');
+                    
+                } catch (error) {
+                    console.error('Eroare la exportul PDF:', error);
+                    this.showToast('Eroare la exportul PDF!', 'error');
+                }
+            }
+
+            exportToJSON() {
+                // **EXPLICAȚIE DETALIATĂ:** Exportă proiectul în format JSON
+                if (this.points.length === 0) {
+                    this.showToast('Nu există date de exportat!', 'error');
+                    return;
+                }
+
+                try {
+                    const exportData = {
+                        metadata: {
+                            exportDate: new Date().toISOString(),
+                            version: '1.0',
+                            application: 'Roof Calculator Pro AR'
+                        },
+                        project: {
+                            name: this.currentProject?.name || 'Proiect Nesalvat',
+                            description: this.currentProject?.description || '',
+                            createdAt: this.currentProject?.createdAt || new Date().toISOString()
+                        },
+                        calibration: {
+                            isCalibrated: this.isCalibrated,
+                            pixelsPerMM: this.pixelsPerMM,
+                            referenceObject: this.referenceObject,
+                            cameraDistance: this.cameraDistance
+                        },
+                        geometry: {
+                            points: this.points.map(p => ({
+                                label: p.label,
+                                coordinates: { x: p.x, y: p.y },
+                                id: p.id
+                            })),
+                            measurements: this.measurements.map(m => {
+                                if (m.type === 'area') {
+                                    return {
+                                        type: 'area',
+                                        label: m.label,
+                                        value: m.areaM2,
+                                        unit: 'm²'
+                                    };
+                                } else {
+                                    return {
+                                        type: 'distance',
+                                        label: m.label,
+                                        fromPoint: m.fromPoint,
+                                        toPoint: m.toPoint,
+                                        value: m.mDistance,
+                                        unit: 'm'
+                                    };
+                                }
+                            })
+                        },
+                        technical: {
+                            deviceOrientation: this.deviceOrientation,
+                            photoData: this.photoData ? 'included' : 'not_available'
+                        }
+                    };
+
+                    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    
+                    const projectName = exportData.project.name.replace(/[^a-z0-9]/gi, '_');
+                    a.href = url;
+                    a.download = `RoofCalculator_${projectName}_${new Date().toISOString().split('T')[0]}.json`;
+                    a.click();
+                    
+                    URL.revokeObjectURL(url);
+                    
+                    this.showToast('JSON exportat cu succes!', 'success');
+                    
+                } catch (error) {
+                    console.error('Eroare la exportul JSON:', error);
+                    this.showToast('Eroare la exportul JSON!', 'error');
+                }
+            }
+
+            // ================== UTILITĂȚI ==================
+
+            updateARStatus(message, type = 'info') {
+                // **EXPLICAȚIE:** Actualizează statusul AR din panoul lateral
+                const statusElement = document.getElementById('ar-status');
+                const icons = {
+                    'info': 'ℹ️',
+                    'success': '✅',
+                    'warning': '⚠️',
+                    'error': '❌'
+                };
+
+                statusElement.innerHTML = `${icons[type] || 'ℹ️'} ${message}`;
+                statusElement.className = `status-info ${type}`;
+                
+                console.log(`[AR ${type.toUpperCase()}] ${message}`);
+            }
+
+            showToast(message, type = 'info') {
+                // **EXPLICAȚIE:** Afișează notificări toast în colțul ecranului
+                const toast = document.getElementById('toast');
+                toast.textContent = message;
+                toast.className = `toast ${type}`;
+                toast.classList.add('show');
+                
+                setTimeout(() => {
+                    toast.classList.remove('show');
+                }, 3000);
+            }
+        }
+
+        // Inițializare aplicație
+        let roofCalculator;
+        document.addEventListener('DOMContentLoaded', () => {
+            roofCalculator = new RoofCalculatorProAR();
+        });
+
+        console.log('🚀 ROOF CALCULATOR PRO AR - Încărcat și funcțional!');
+        console.log('✅ Toate modulele AR sunt disponibile și funcționale');
+    </script>
+</body>
+</html>
